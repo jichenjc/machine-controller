@@ -80,8 +80,8 @@ func (p *provider) Create(_ *v1alpha1.Machine, _ cloud.MachineUpdater, _ string)
 	return CloudProviderInstance{}, nil
 }
 
-func (p *provider) Delete(_ *v1alpha1.Machine, _ cloud.MachineUpdater) error {
-	return nil
+func (p *provider) Cleanup(_ *v1alpha1.Machine, _ cloud.MachineUpdater) (bool, error) {
+	return true, nil
 }
 
 func (p *provider) MigrateUID(machine *v1alpha1.Machine, new types.UID) error {

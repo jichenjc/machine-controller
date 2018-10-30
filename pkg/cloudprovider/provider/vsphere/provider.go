@@ -382,22 +382,22 @@ func (p *provider) Create(machine *v1alpha1.Machine, _ cloud.MachineUpdater, use
 	return Server{name: virtualMachine.Name(), status: instance.StatusRunning, id: virtualMachine.Reference().Value}, nil
 }
 
-func (p *provider) Delete(machine *v1alpha1.Machine, _ cloud.MachineUpdater) error {
+func (p *provider) Cleanup(machine *v1alpha1.Machine, _ cloud.MachineUpdater) (bool, error) {
 	if _, err := p.Get(machine); err != nil {
 		if err == cloudprovidererrors.ErrInstanceNotFound {
-			return nil
+			return true, nil
 		}
-		return fmt.Errorf("failed to get instance: %v", err)
+		return false, fmt.Errorf("failed to get instance: %v", err)
 	}
 
 	config, pc, _, err := p.getConfig(machine.Spec.ProviderConfig)
 	if err != nil {
-		return fmt.Errorf("failed to parse config: %v", err)
+		return false, fmt.Errorf("failed to parse config: %v", err)
 	}
 
 	client, err := getClient(config.Username, config.Password, config.VSphereURL, config.AllowInsecure)
 	if err != nil {
-		return fmt.Errorf("failed to get vsphere client: '%v'", err)
+		return false, fmt.Errorf("failed to get vsphere client: '%v'", err)
 	}
 	defer func() {
 		if err := client.Logout(context.TODO()); err != nil {
@@ -412,18 +412,18 @@ func (p *provider) Delete(machine *v1alpha1.Machine, _ cloud.MachineUpdater) err
 	// is still the cloud-init iso
 	dc, err := finder.Datacenter(context.TODO(), config.Datacenter)
 	if err != nil {
-		return fmt.Errorf("failed to get vsphere datacenter: %v", err)
+		return false, fmt.Errorf("failed to get vsphere datacenter: %v", err)
 	}
 	finder.SetDatacenter(dc)
 
 	virtualMachine, err := finder.VirtualMachine(context.TODO(), machine.Spec.Name)
 	if err != nil {
-		return fmt.Errorf("failed to get virtual machine object: %v", err)
+		return false, fmt.Errorf("failed to get virtual machine object: %v", err)
 	}
 
 	powerState, err := virtualMachine.PowerState(context.TODO())
 	if err != nil {
-		return fmt.Errorf("failed to get virtual machine power state: %v", err)
+		return false, fmt.Errorf("failed to get virtual machine power state: %v", err)
 	}
 
 	// We cannot destroy a VM thats powered on, but we also
@@ -431,36 +431,36 @@ func (p *provider) Delete(machine *v1alpha1.Machine, _ cloud.MachineUpdater) err
 	if powerState != types.VirtualMachinePowerStatePoweredOff {
 		powerOffTask, err := virtualMachine.PowerOff(context.TODO())
 		if err != nil {
-			return fmt.Errorf("failed to poweroff vm %s: %v", virtualMachine.Name(), err)
+			return false, fmt.Errorf("failed to poweroff vm %s: %v", virtualMachine.Name(), err)
 		}
 		if err = powerOffTask.Wait(context.TODO()); err != nil {
-			return fmt.Errorf("failed to poweroff vm %s: %v", virtualMachine.Name(), err)
+			return false, fmt.Errorf("failed to poweroff vm %s: %v", virtualMachine.Name(), err)
 		}
 	}
 
 	destroyTask, err := virtualMachine.Destroy(context.TODO())
 	if err != nil {
-		return fmt.Errorf("failed to destroy vm %s: %v", virtualMachine.Name(), err)
+		return false, fmt.Errorf("failed to destroy vm %s: %v", virtualMachine.Name(), err)
 	}
 	if err := destroyTask.Wait(context.TODO()); err != nil {
-		return fmt.Errorf("failed to destroy vm %s: %v", virtualMachine.Name(), err)
+		return false, fmt.Errorf("failed to destroy vm %s: %v", virtualMachine.Name(), err)
 	}
 
 	if pc.OperatingSystem != providerconfig.OperatingSystemCoreos {
 		datastore, err := finder.Datastore(context.TODO(), config.Datastore)
 		if err != nil {
-			return fmt.Errorf("failed to get datastore %s: %v", config.Datastore, err)
+			return false, fmt.Errorf("failed to get datastore %s: %v", config.Datastore, err)
 		}
 		filemanager := datastore.NewFileManager(dc, false)
 
 		err = filemanager.Delete(context.TODO(), virtualMachine.Name())
 		if err != nil {
-			return fmt.Errorf("failed to delete storage of deleted instance %s: %v", virtualMachine.Name(), err)
+			return false, fmt.Errorf("failed to delete storage of deleted instance %s: %v", virtualMachine.Name(), err)
 		}
 	}
 
 	glog.V(2).Infof("Successfully destroyed vm %s", virtualMachine.Name())
-	return nil
+	return false, nil
 }
 
 func (p *provider) Get(machine *v1alpha1.Machine) (instance.Instance, error) {
