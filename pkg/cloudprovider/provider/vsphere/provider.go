@@ -11,7 +11,6 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/vmware/govmomi"
@@ -146,33 +145,13 @@ func (p *provider) AddDefaults(spec v1alpha1.MachineSpec) (v1alpha1.MachineSpec,
 		}
 	}
 
-	spec.ProviderConfig.Value, err = setProviderConfig(*rawCfg, spec.ProviderConfig)
+	updatedProviderConfig, err := providerconfig.SetCloudProviderSpecInProviderConfig(rawCfg, spec.ProviderConfig)
 	if err != nil {
-		return spec, fmt.Errorf("error marshaling providerconfig: %s", err)
+		return spec, fmt.Errorf("error setting new ProviderConfig: %s", err)
 	}
+	spec.ProviderConfig = *updatedProviderConfig
 
 	return spec, nil
-}
-
-func setProviderConfig(rawConfig RawConfig, s v1alpha1.ProviderConfig) (*runtime.RawExtension, error) {
-	pconfig := providerconfig.Config{}
-	err := json.Unmarshal(s.Value.Raw, &pconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	rawCloudProviderSpec, err := json.Marshal(rawConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	pconfig.CloudProviderSpec = runtime.RawExtension{Raw: rawCloudProviderSpec}
-	rawPconfig, err := json.Marshal(pconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return &runtime.RawExtension{Raw: rawPconfig}, nil
 }
 
 func getClient(username, password, address string, allowInsecure bool) (*govmomi.Client, error) {

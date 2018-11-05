@@ -334,3 +334,26 @@ func GetConfig(r clusterv1alpha1.ProviderConfig) (*Config, error) {
 	}
 	return p, nil
 }
+
+// SetCloudProviderSpecInProviderConfig takes the CloudProviderSpec via rawConfig, marshals it & sets it in the providerConfig
+func SetCloudProviderSpecInProviderConfig(cloudProviderSpec interface{}, s clusterv1alpha1.ProviderConfig) (*clusterv1alpha1.ProviderConfig, error) {
+	customProviderConfig := Config{}
+	err := json.Unmarshal(s.Value.Raw, &customProviderConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	rawCloudProviderSpec, err := json.Marshal(cloudProviderSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	customProviderConfig.CloudProviderSpec = runtime.RawExtension{Raw: rawCloudProviderSpec}
+
+	rawProviderConfig, err := json.Marshal(customProviderConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &clusterv1alpha1.ProviderConfig{Value: &runtime.RawExtension{Raw: rawProviderConfig}}, nil
+}
