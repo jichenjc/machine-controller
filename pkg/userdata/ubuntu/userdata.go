@@ -335,18 +335,6 @@ write_files:
   content: |
     export PATH="/opt/bin:$PATH"
 
-- path: /etc/docker/daemon.json
-  permissions: "0644"
-  content: |
-    {
-      "storage-driver": "overlay2",
-      "log-driver": "json-file",
-      "log-opts": {
-        "max-size": "10m",
-        "max-file": "2"
-      }
-    }
-
 - path: /etc/systemd/system/kubelet-healthcheck.service
   permissions: "0644"
   content: |
@@ -356,6 +344,11 @@ write_files:
   permissions: "0644"
   content: |
 {{ containerRuntimeHealthCheckSystemdUnit | indent 4 }}
+
+- path: /etc/docker/daemon.json
+  permissions: "0644"
+  content: |
+{{ dockerDaemonConfig | indent 4 }}
 
 runcmd:
 - systemctl enable --now setup.service

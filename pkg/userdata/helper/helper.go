@@ -72,3 +72,15 @@ func JournalDConfig() string {
 SystemMaxUse=5G
 `
 }
+
+// DockerDaemonConfig returns the docker daemon.json with preferred settings
+func DockerDaemonConfig() string {
+	return `{
+  "storage-driver": "overlay2",
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "2"
+  }
+}`
+}
