@@ -345,14 +345,6 @@ storage:
           PasswordAuthentication no
           ChallengeResponseAuthentication no
 
-    - path: /etc/systemd/system/docker.service.d/10-storage.conf
-      filesystem: root
-      mode: 0644
-      contents:
-        inline: |
-          [Service]
-          Environment=DOCKER_OPTS=--storage-driver=overlay2
-
     - path: /opt/bin/download.sh
       filesystem: root
       mode: 0755
@@ -361,4 +353,11 @@ storage:
           #!/bin/bash
           set -xeuo pipefail
 {{ downloadBinariesScript .KubeletVersion false | indent 10 }}
+
+    - path: /etc/docker/daemon.json
+      filesystem: root
+      mode: 0644
+      contents:
+        inline: |
+{{ dockerDaemonConfig | indent 10 }}
 `
