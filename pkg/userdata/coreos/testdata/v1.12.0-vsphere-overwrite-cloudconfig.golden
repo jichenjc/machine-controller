@@ -153,17 +153,6 @@
       {
         "filesystem": "root",
         "group": {},
-        "path": "/etc/systemd/system/docker.service.d/10-storage.conf",
-        "user": {},
-        "contents": {
-          "source": "data:,%5BService%5D%0AEnvironment%3DDOCKER_OPTS%3D--storage-driver%3Doverlay2%0A",
-          "verification": {}
-        },
-        "mode": 420
-      },
-      {
-        "filesystem": "root",
-        "group": {},
         "path": "/opt/bin/download.sh",
         "user": {},
         "contents": {
@@ -171,6 +160,17 @@
           "verification": {}
         },
         "mode": 493
+      },
+      {
+        "filesystem": "root",
+        "group": {},
+        "path": "/etc/docker/daemon.json",
+        "user": {},
+        "contents": {
+          "source": "data:,%7B%0A%20%20%22storage-driver%22%3A%20%22overlay2%22%2C%0A%20%20%22log-driver%22%3A%20%22json-file%22%2C%0A%20%20%22log-opts%22%3A%20%7B%0A%20%20%20%20%22max-size%22%3A%20%2210m%22%2C%0A%20%20%20%20%22max-file%22%3A%20%222%22%0A%20%20%7D%0A%7D%0A",
+          "verification": {}
+        },
+        "mode": 420
       }
     ]
   },
