@@ -19,6 +19,8 @@ func TxtFuncMap() template.FuncMap {
 	funcMap["dockerDaemonConfig"] = DockerDaemonConfig
 	funcMap["kubeletHealthCheckSystemdUnit"] = KubeletHealthCheckSystemdUnit
 	funcMap["containerRuntimeHealthCheckSystemdUnit"] = ContainerRuntimeHealthCheckSystemdUnit
+	funcMap["dockerSystemdUnit"] = DockerSystemdUnit
+	funcMap["dockerSystemdSocket"] = DockerSystemdSocket
 
 	return funcMap
 }

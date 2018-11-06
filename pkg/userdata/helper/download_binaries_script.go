@@ -14,6 +14,13 @@ mkdir -p /etc/kubernetes/manifests
 mkdir -p /etc/cni/net.d
 mkdir -p /opt/cni/bin
 
+# docker
+if [ ! -f /opt/bin/docker ]; then
+    curl -L http://download.docker.com/linux/static/stable/x86_64/docker-17.03.2-ce.tgz | tar -xvzC /opt/ -f -
+    mv /opt/docker/* /opt/bin/
+    rm -rf /opt/docker
+fi
+
 # cni
 if [ ! -f /opt/cni/bin/loopback ]; then
     curl -L https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz | tar -xvzC /opt/cni/bin -f -
