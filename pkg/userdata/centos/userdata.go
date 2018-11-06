@@ -190,8 +190,7 @@ write_files:
     hostnamectl set-hostname {{ .MachineSpec.Name }}
     {{ end }}
 
-    yum install -y docker-1.13.1 \
-      ebtables \
+    yum install -y ebtables \
       ethtool \
       nfs-utils \
       bash-completion \
@@ -199,12 +198,17 @@ write_files:
       socat \
       wget \
       curl \
+      libtool-ltdl \
+      libseccomp \
+      libcgroup \
       ipvsadm{{ if eq .CloudProvider "vsphere" }} \
       open-vm-tools{{ end }}
 
 {{ downloadBinariesScript .KubeletVersion true | indent 4 }}
 
-    {{- if eq .CloudProvider "vsphere" }}
+    groupadd docker
+
+    {{ if eq .CloudProvider "vsphere" }}
     systemctl enable --now vmtoolsd.service
     {{ end -}}
     systemctl enable --now docker
@@ -224,11 +228,6 @@ write_files:
 - path: "/etc/systemd/system/kubelet.service"
   content: |
 {{ kubeletSystemdUnit .KubeletVersion .CloudProvider .MachineSpec.Name .ClusterDNSIPs | indent 4 }}
-
-- path: "/etc/systemd/system/kubelet.service.d/extras.conf"
-  content: |
-    [Service]
-    Environment="KUBELET_EXTRA_ARGS=--cgroup-driver=systemd"
 
 - path: "/etc/kubernetes/cloud-config"
   content: |
@@ -271,6 +270,16 @@ write_files:
   permissions: "0644"
   content: |
 {{ containerRuntimeHealthCheckSystemdUnit | indent 4 }}
+
+- path: /etc/systemd/system/docker.service
+  permissions: "0644"
+  content: |
+{{ dockerSystemdUnit false | indent 4 }}
+
+- path: /etc/systemd/system/docker.socket
+  permissions: "0644"
+  content: |
+{{ dockerSystemdSocket | indent 4 }}
 
 runcmd:
 - systemctl enable --now setup.service
