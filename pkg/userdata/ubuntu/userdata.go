@@ -240,12 +240,6 @@ write_files:
     systemctl mask swap.target
     swapoff -a
 
-{{- if semverCompare "<1.12.0" .KubeletVersion }}
-    export CR_PKG='docker.io=17.12.1-0ubuntu1'
-{{- else }}
-    export CR_PKG='docker-ce=18.06.0~ce~3-0~ubuntu'
-{{- end }}
-
     DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install -y \
       curl \
       ca-certificates \
@@ -263,13 +257,12 @@ write_files:
       nfs-common \
       socat \
       util-linux \
-      ${CR_PKG} \
+      bridge-utils \
+      libapparmor1 \
+      libltdl7 \
+      perl \
       ipvsadm{{ if eq .CloudProvider "vsphere" }} \
       open-vm-tools{{ end }}
-
-    # If something failed during package installation but docker got installed, we need to put it on hold
-    apt-mark hold docker.io || true
-    apt-mark hold docker-ce || true
 
     {{- if .OSConfig.DistUpgradeOnBoot }}
     DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade -y
@@ -279,6 +272,8 @@ write_files:
     fi
 
 {{ downloadBinariesScript .KubeletVersion true | indent 4 }}
+
+    groupadd docker || true
 
     systemctl enable --now docker
     systemctl enable --now kubelet
@@ -349,6 +344,16 @@ write_files:
   permissions: "0644"
   content: |
 {{ dockerDaemonConfig | indent 4 }}
+
+- path: /etc/systemd/system/docker.service
+  permissions: "0644"
+  content: |
+{{ dockerSystemdUnit true | indent 4 }}
+
+- path: /etc/systemd/system/docker.socket
+  permissions: "0644"
+  content: |
+{{ dockerSystemdSocket | indent 4 }}
 
 runcmd:
 - systemctl enable --now setup.service
