@@ -57,8 +57,7 @@ write_files:
 
     
 
-    yum install -y docker-1.13.1 \
-      ebtables \
+    yum install -y ebtables \
       ethtool \
       nfs-utils \
       bash-completion \
@@ -66,6 +65,9 @@ write_files:
       socat \
       wget \
       curl \
+      libtool-ltdl \
+      libseccomp \
+      libcgroup \
       ipvsadm
 
     #setup some common directories
@@ -74,6 +76,13 @@ write_files:
     mkdir -p /etc/kubernetes/manifests
     mkdir -p /etc/cni/net.d
     mkdir -p /opt/cni/bin
+    
+    # docker
+    if [ ! -f /opt/bin/docker ]; then
+        curl -L http://download.docker.com/linux/static/stable/x86_64/docker-17.03.2-ce.tgz | tar -xvzC /opt/ -f -
+        mv /opt/docker/* /opt/bin/
+        rm -rf /opt/docker
+    fi
     
     # cni
     if [ ! -f /opt/cni/bin/loopback ]; then
@@ -89,6 +98,10 @@ write_files:
         curl -Lfo /opt/bin/health-monitor.sh https://raw.githubusercontent.com/kubermatic/machine-controller/8b5b66e4910a6228dfaecccaa0a3b05ec4902f8e/pkg/userdata/scripts/health-monitor.sh
         chmod +x /opt/bin/health-monitor.sh
     fi
+    
+
+    groupadd docker
+
     systemctl enable --now docker
     systemctl enable --now kubelet
     systemctl enable --now --no-block kubelet-healthcheck.service
@@ -144,11 +157,6 @@ write_files:
     
     [Install]
     WantedBy=multi-user.target
-
-- path: "/etc/systemd/system/kubelet.service.d/extras.conf"
-  content: |
-    [Service]
-    Environment="KUBELET_EXTRA_ARGS=--cgroup-driver=systemd"
 
 - path: "/etc/kubernetes/cloud-config"
   content: |
@@ -248,6 +256,61 @@ write_files:
     [Install]
     WantedBy=multi-user.target
     
+
+- path: /etc/systemd/system/docker.service
+  permissions: "0644"
+  content: |
+    [Unit]
+    Description=Docker Application Container Engine
+    Documentation=https://docs.docker.com
+    After=network-online.target docker.socket firewalld.service
+    Wants=network-online.target
+    Requires=docker.socket
+    
+    [Service]
+    Environment="PATH=/opt/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin/"
+    Type=notify
+    # the default is not to use systemd for cgroups because the delegate issues still
+    # exists and systemd currently does not support the cgroup feature set required
+    # for containers run by docker
+    ExecStart=/opt/bin/dockerd -H fd://
+    ExecReload=/bin/kill -s HUP $MAINPID
+    LimitNOFILE=1048576
+    # Having non-zero Limit*s causes performance problems due to accounting overhead
+    # in the kernel. We recommend using cgroups to do container-local accounting.
+    LimitNPROC=infinity
+    LimitCORE=infinity
+    # Uncomment TasksMax if your systemd version supports it.
+    # Only systemd 226 and above support this version.
+    
+    TimeoutStartSec=0
+    # set delegate yes so that systemd does not reset the cgroups of docker containers
+    Delegate=yes
+    # kill only the docker process, not all processes in the cgroup
+    KillMode=process
+    # restart the docker process if it exits prematurely
+    Restart=on-failure
+    StartLimitBurst=3
+    StartLimitInterval=60s
+    
+    [Install]
+    WantedBy=multi-user.target
+
+- path: /etc/systemd/system/docker.socket
+  permissions: "0644"
+  content: |
+    [Unit]
+    Description=Docker Socket for the API
+    PartOf=docker.service
+    
+    [Socket]
+    ListenStream=/var/run/docker.sock
+    SocketMode=0660
+    SocketUser=root
+    SocketGroup=docker
+    
+    [Install]
+    WantedBy=sockets.target
 
 runcmd:
 - systemctl enable --now setup.service
