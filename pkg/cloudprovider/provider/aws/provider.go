@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/golang/glog"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	"sigs.k8s.io/cluster-api/pkg/apis/cluster/common"
@@ -435,18 +436,6 @@ func (p *provider) Create(machine *v1alpha1.Machine, data *cloud.MachineCreateDe
 		return nil, err
 	}
 
-	amiID := config.AMI
-	if amiID == "" {
-		if amiID, err = getDefaultAMIID(ec2Client, pc.OperatingSystem); err != nil {
-			if err != nil {
-				return nil, cloudprovidererrors.TerminalError{
-					Reason:  common.InvalidConfigurationMachineError,
-					Message: fmt.Sprintf("Invalid Region and Operating System configuration: %v", err),
-				}
-			}
-		}
-	}
-
 	tags := []*ec2.Tag{
 		{
 			Key:   aws.String(nameTag),
@@ -466,7 +455,7 @@ func (p *provider) Create(machine *v1alpha1.Machine, data *cloud.MachineCreateDe
 	}
 
 	instanceRequest := &ec2.RunInstancesInput{
-		ImageId: aws.String(amiID),
+		ImageId: aws.String(config.AMI),
 		BlockDeviceMappings: []*ec2.BlockDeviceMapping{
 			{
 				DeviceName: aws.String(rootDevicePath),

@@ -10,10 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/golang/glog"
 	gocache "github.com/patrickmn/go-cache"
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/kubermatic/machine-controller/pkg/providerconfig"
+
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (
@@ -93,6 +95,7 @@ func getVpc(client *ec2.EC2, id string) (*ec2.Vpc, error) {
 
 	cacheKey := fmt.Sprintf("vpc-%s-%s", *client.Config.Region, id)
 	if vpc, found := cache.Get(cacheKey); found {
+		glog.V(6).Infof("Found VPC %s in cache", *vpc.(*ec2.Vpc).VpcId)
 		return vpc.(*ec2.Vpc), nil
 	}
 
@@ -130,6 +133,7 @@ func getDefaultAMIID(client *ec2.EC2, os providerconfig.OperatingSystem) (string
 
 	cacheKey := fmt.Sprintf("ami-id-%s-%s", *client.Config.Region, os)
 	if amiID, found := cache.Get(cacheKey); found {
+		glog.V(6).Infof("Found AMI ID %s in cache", amiID.(string))
 		return amiID.(string), nil
 	}
 
