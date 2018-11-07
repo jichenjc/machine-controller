@@ -156,7 +156,7 @@
         "path": "/opt/bin/download.sh",
         "user": {},
         "contents": {
-          "source": "data:,%23!%2Fbin%2Fbash%0Aset%20-xeuo%20pipefail%0A%23setup%20some%20common%20directories%0Amkdir%20-p%20%2Fopt%2Fbin%2F%0Amkdir%20-p%20%2Fvar%2Flib%2Fcalico%0Amkdir%20-p%20%2Fetc%2Fkubernetes%2Fmanifests%0Amkdir%20-p%20%2Fetc%2Fcni%2Fnet.d%0Amkdir%20-p%20%2Fopt%2Fcni%2Fbin%0A%0A%23%20cni%0Aif%20%5B%20!%20-f%20%2Fopt%2Fcni%2Fbin%2Floopback%20%5D%3B%20then%0A%20%20%20%20curl%20-L%20https%3A%2F%2Fgithub.com%2Fcontainernetworking%2Fplugins%2Freleases%2Fdownload%2Fv0.6.0%2Fcni-plugins-amd64-v0.6.0.tgz%20%7C%20tar%20-xvzC%20%2Fopt%2Fcni%2Fbin%20-f%20-%0Afi%0A%0Aif%20%5B%5B%20!%20-x%20%2Fopt%2Fbin%2Fhealth-monitor.sh%20%5D%5D%3B%20then%0A%20%20%20%20curl%20-Lfo%20%2Fopt%2Fbin%2Fhealth-monitor.sh%20https%3A%2F%2Fraw.githubusercontent.com%2Fkubermatic%2Fmachine-controller%2F8b5b66e4910a6228dfaecccaa0a3b05ec4902f8e%2Fpkg%2Fuserdata%2Fscripts%2Fhealth-monitor.sh%0A%20%20%20%20chmod%20%2Bx%20%2Fopt%2Fbin%2Fhealth-monitor.sh%0Afi%0A",
+          "source": "data:,%23!%2Fbin%2Fbash%0Aset%20-xeuo%20pipefail%0A%23setup%20some%20common%20directories%0Amkdir%20-p%20%2Fopt%2Fbin%2F%0Amkdir%20-p%20%2Fvar%2Flib%2Fcalico%0Amkdir%20-p%20%2Fetc%2Fkubernetes%2Fmanifests%0Amkdir%20-p%20%2Fetc%2Fcni%2Fnet.d%0Amkdir%20-p%20%2Fopt%2Fcni%2Fbin%0A%0A%23%20docker%0Aif%20%5B%20!%20-f%20%2Fopt%2Fbin%2Fdocker%20%5D%3B%20then%0A%20%20%20%20curl%20-L%20http%3A%2F%2Fdownload.docker.com%2Flinux%2Fstatic%2Fstable%2Fx86_64%2Fdocker-17.03.2-ce.tgz%20%7C%20tar%20-xvzC%20%2Fopt%2F%20-f%20-%0A%20%20%20%20mv%20%2Fopt%2Fdocker%2F*%20%2Fopt%2Fbin%2F%0A%20%20%20%20rm%20-rf%20%2Fopt%2Fdocker%0Afi%0A%0A%23%20cni%0Aif%20%5B%20!%20-f%20%2Fopt%2Fcni%2Fbin%2Floopback%20%5D%3B%20then%0A%20%20%20%20curl%20-L%20https%3A%2F%2Fgithub.com%2Fcontainernetworking%2Fplugins%2Freleases%2Fdownload%2Fv0.6.0%2Fcni-plugins-amd64-v0.6.0.tgz%20%7C%20tar%20-xvzC%20%2Fopt%2Fcni%2Fbin%20-f%20-%0Afi%0A%0Aif%20%5B%5B%20!%20-x%20%2Fopt%2Fbin%2Fhealth-monitor.sh%20%5D%5D%3B%20then%0A%20%20%20%20curl%20-Lfo%20%2Fopt%2Fbin%2Fhealth-monitor.sh%20https%3A%2F%2Fraw.githubusercontent.com%2Fkubermatic%2Fmachine-controller%2F8b5b66e4910a6228dfaecccaa0a3b05ec4902f8e%2Fpkg%2Fuserdata%2Fscripts%2Fhealth-monitor.sh%0A%20%20%20%20chmod%20%2Bx%20%2Fopt%2Fbin%2Fhealth-monitor.sh%0Afi%0A",
           "verification": {}
         },
         "mode": 493
@@ -185,19 +185,36 @@
         "name": "locksmithd.service"
       },
       {
+        "contents": "[Unit]\nRequires=network-online.target\nAfter=network-online.target\n[Service]\nType=oneshot\nExecStartPre=/opt/bin/download.sh\nExecStart=/usr/bin/echo Successfully downloaded all required binaries\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "download-binaries.service"
+      },
+      {
+        "contents": "[Unit]\nDescription=Docker Application Container Engine\nDocumentation=https://docs.docker.com\nAfter=network-online.target docker.socket firewalld.service\nWants=network-online.target\nRequires=docker.socket\n\n[Service]\nEnvironment=\"PATH=/opt/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin/\"\nType=notify\n# the default is not to use systemd for cgroups because the delegate issues still\n# exists and systemd currently does not support the cgroup feature set required\n# for containers run by docker\nExecStart=/opt/bin/dockerd -H fd://\nExecReload=/bin/kill -s HUP $MAINPID\nLimitNOFILE=1048576\n# Having non-zero Limit*s causes performance problems due to accounting overhead\n# in the kernel. We recommend using cgroups to do container-local accounting.\nLimitNPROC=infinity\nLimitCORE=infinity\n# Uncomment TasksMax if your systemd version supports it.\n# Only systemd 226 and above support this version.\n\nTasksMax=infinity\n\nTimeoutStartSec=0\n# set delegate yes so that systemd does not reset the cgroups of docker containers\nDelegate=yes\n# kill only the docker process, not all processes in the cgroup\nKillMode=process\n# restart the docker process if it exits prematurely\nRestart=on-failure\nStartLimitBurst=3\nStartLimitInterval=60s\n\n[Install]\nWantedBy=multi-user.target\n",
+        "dropins": [
+          {
+            "contents": "[Unit]\nRequires=download-binaries.service\nAfter=download-binaries.service\n",
+            "name": "override.conf"
+          }
+        ],
         "enabled": true,
         "name": "docker.service"
       },
       {
-        "contents": "[Unit]\nRequires=network-online.target\nAfter=network-online.target\n[Service]\nType=oneshot\nExecStart=/opt/bin/download.sh\n[Install]\nWantedBy=multi-user.target\n",
-        "enabled": true,
-        "name": "download-healthcheck-script.service"
+        "contents": "[Unit]\nDescription=Docker Socket for the API\nPartOf=docker.service\n\n[Socket]\nListenStream=/var/run/docker.sock\nSocketMode=0660\nSocketUser=root\nSocketGroup=docker\n\n[Install]\nWantedBy=sockets.target\n",
+        "dropins": [
+          {
+            "contents": "[Unit]\nRequires=download-binaries.service\nAfter=download-binaries.service\n",
+            "name": "override.conf"
+          }
+        ],
+        "name": "docker.socket"
       },
       {
         "contents": "[Unit]\nRequires=docker.service\nAfter=docker.service\n\n[Service]\nExecStart=/opt/bin/health-monitor.sh container-runtime\n\n[Install]\nWantedBy=multi-user.target\n",
         "dropins": [
           {
-            "contents": "[Unit]\nRequires=download-healthcheck-script.service\nAfter=download-healthcheck-script.service\n",
+            "contents": "[Unit]\nRequires=download-binaries.service docker.service\nAfter=download-binaries.service docker.service\n",
             "name": "40-docker.conf"
           }
         ],
@@ -208,7 +225,7 @@
         "contents": "[Unit]\nRequires=kubelet.service\nAfter=kubelet.service\n\n[Service]\nExecStart=/opt/bin/health-monitor.sh kubelet\n\n[Install]\nWantedBy=multi-user.target\n",
         "dropins": [
           {
-            "contents": "[Unit]\nRequires=download-healthcheck-script.service\nAfter=download-healthcheck-script.service\n",
+            "contents": "[Unit]\nRequires=download-binaries.service kubelet.service\nAfter=download-binaries.service kubelet.service\n",
             "name": "40-docker.conf"
           }
         ],
