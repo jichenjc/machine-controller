@@ -171,7 +171,6 @@ systemd:
 {{ end }}
 
     - name: download-binaries.service
-      enabled: true
       contents: |
         [Unit]
         Requires=network-online.target
@@ -183,14 +182,23 @@ systemd:
         [Install]
         WantedBy=multi-user.target
 
-    - name: docker.service
-      enabled: true
+    - name: containerd.service
       dropins:
       - name: override.conf
         contents: |
           [Unit]
           Requires=download-binaries.service
           After=download-binaries.service
+      contents: |
+{{ containerdSystemdUnit true | indent 8 }}
+
+    - name: docker.service
+      dropins:
+      - name: override.conf
+        contents: |
+          [Unit]
+          Requires=download-binaries.service containerd.service
+          After=download-binaries.service containerd.service
       contents: |
 {{ dockerSystemdUnit true | indent 8 }}
 
@@ -199,8 +207,8 @@ systemd:
       - name: override.conf
         contents: |
           [Unit]
-          Requires=download-binaries.service
-          After=download-binaries.service
+          Requires=download-binaries.service containerd.service
+          After=download-binaries.service containerd.service
       contents: |
 {{ dockerSystemdSocket | indent 8 }}
 
@@ -371,4 +379,11 @@ storage:
       contents:
         inline: |
 {{ dockerDaemonConfig | indent 10 }}
+
+    - path: /etc/profile.d/opt-bin-path.sh
+      filesystem: root
+      mode: 0644
+      contents:
+        inline: |
+          export PATH="/opt/bin:$PATH"
 `
