@@ -133,6 +133,9 @@ hostname: {{ .MachineSpec.Name }}
 # Never set the hostname on AWS nodes. Kubernetes(kube-proxy) requires the hostname to be the private dns name
 {{ end }}
 
+groups:
+  - docker
+
 ssh_pwauth: no
 
 ssh_authorized_keys:
@@ -272,8 +275,6 @@ write_files:
     fi
 
 {{ downloadBinariesScript .KubeletVersion true | indent 4 }}
-
-    groupadd docker || true
 
     systemctl enable --now docker
     systemctl enable --now kubelet
