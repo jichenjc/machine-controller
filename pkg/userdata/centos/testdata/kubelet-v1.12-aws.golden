@@ -1,6 +1,9 @@
 #cloud-config
 
 
+groups:
+  - docker
+
 ssh_pwauth: no
 
 write_files:
