@@ -136,6 +136,9 @@ package_upgrade: true
 package_reboot_if_required: true
 {{- end }}
 
+groups:
+  - docker
+
 ssh_pwauth: no
 
 {{- if ne (len .ProviderConfig.SSHPublicKeys) 0 }}
