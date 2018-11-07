@@ -169,10 +169,8 @@ systemd:
     - name: locksmithd.service
       mask: true
 {{ end }}
-    - name: docker.service
-      enabled: true
 
-    - name: download-healthcheck-script.service
+    - name: download-binaries.service
       enabled: true
       contents: |
         [Unit]
@@ -180,9 +178,31 @@ systemd:
         After=network-online.target
         [Service]
         Type=oneshot
-        ExecStart=/opt/bin/download.sh
+        ExecStartPre=/opt/bin/download.sh
+        ExecStart=/usr/bin/echo Successfully downloaded all required binaries
         [Install]
         WantedBy=multi-user.target
+
+    - name: docker.service
+      enabled: true
+      dropins:
+      - name: override.conf
+        contents: |
+          [Unit]
+          Requires=download-binaries.service
+          After=download-binaries.service
+      contents: |
+{{ dockerSystemdUnit true | indent 8 }}
+
+    - name: docker.socket
+      dropins:
+      - name: override.conf
+        contents: |
+          [Unit]
+          Requires=download-binaries.service
+          After=download-binaries.service
+      contents: |
+{{ dockerSystemdSocket | indent 8 }}
 
     - name: docker-healthcheck.service
       enabled: true
@@ -190,8 +210,8 @@ systemd:
       - name: 40-docker.conf
         contents: |
           [Unit]
-          Requires=download-healthcheck-script.service
-          After=download-healthcheck-script.service
+          Requires=download-binaries.service docker.service
+          After=download-binaries.service docker.service
       contents: |
 {{ containerRuntimeHealthCheckSystemdUnit | indent 10 }}
 
@@ -201,8 +221,8 @@ systemd:
       - name: 40-docker.conf
         contents: |
           [Unit]
-          Requires=download-healthcheck-script.service
-          After=download-healthcheck-script.service
+          Requires=download-binaries.service kubelet.service
+          After=download-binaries.service kubelet.service
       contents: |
 {{ kubeletHealthCheckSystemdUnit | indent 10 }}
 
@@ -308,15 +328,6 @@ storage:
       contents:
         inline: |
 {{ .KubernetesCACert | indent 10 }}
-
-{{- if semverCompare "<=1.11.*" .KubeletVersion }}
-    - path: /etc/coreos/docker-1.12
-      mode: 0644
-      filesystem: root
-      contents:
-        inline: |
-          yes
-{{ end }}
 
 {{ if ne .CloudProvider "aws" }}
     - path: /etc/hostname
