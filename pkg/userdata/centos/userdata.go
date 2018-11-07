@@ -209,11 +209,10 @@ write_files:
 
 {{ downloadBinariesScript .KubeletVersion true | indent 4 }}
 
-    groupadd docker
-
     {{ if eq .CloudProvider "vsphere" }}
     systemctl enable --now vmtoolsd.service
     {{ end -}}
+    systemctl enable --now containerd
     systemctl enable --now docker
     systemctl enable --now kubelet
     systemctl enable --now --no-block kubelet-healthcheck.service
@@ -283,6 +282,11 @@ write_files:
   permissions: "0644"
   content: |
 {{ dockerSystemdSocket | indent 4 }}
+
+- path: /etc/systemd/system/containerd.service
+  permissions: "0644"
+  content: |
+{{ containerdSystemdUnit true | indent 4 }}
 
 runcmd:
 - systemctl enable --now setup.service
