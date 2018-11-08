@@ -86,7 +86,7 @@ func DockerSystemdUnit(setTasksMax bool) (string, error) {
 	return string(b.String()), nil
 }
 
-// DockerSystemdUnit returns the systemd unit for docker
+// DockerSystemdSocket returns the systemd socket for docker
 func DockerSystemdSocket() string {
 	return `[Unit]
 Description=Docker Socket for the API
